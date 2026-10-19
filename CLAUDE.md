@@ -63,7 +63,7 @@ Owner rules (must always follow): see [docs/OWNER_RULES.md](docs/OWNER_RULES.md)
 | Charts | Recharts |
 | Payments | Gateway abstraction `src/server/payments/` → COD, Manual (bKash/Nagad/Rocket TrxID), SSLCommerz, bKash Tokenized |
 | Email | Nodemailer (falls back to console log when SMTP not configured) |
-| Uploads | Storage adapter `src/server/storage/` (local disk → served via `/api/files/...`) |
+| Uploads | Storage adapter `src/server/storage/` — Vercel Blob / S3-compatible (R2) / local disk (`/api/files/...`), auto-detected from env |
 
 ## 3. Rendering strategy (per page)
 
@@ -108,9 +108,9 @@ Commands: `pnpm dev` · `pnpm typecheck` · `pnpm lint` · `pnpm build` · `pnpm
 Logins after seed: super admin `admin@example.com / ChangeMe123!` (from `.env`), demo seller `demo@nickname.app / Demo12345` → `/demo`.
 
 ## 6. Pending tasks (next phase, by priority)
-1. Deploy: pick host (VPS + Caddy for custom-domain TLS, or Vercel + hosted Postgres) — see README "Deployment".
+1. Deploy to Vercel following docs/DEPLOYMENT.md (DB + Blob/R2 + env vars). Automate seller custom domains via the Vercel Domains API.
 2. Test SSLCommerz + bKash with real sandbox credentials (code paths written, not yet hit with live sandbox).
-3. Move uploads to S3/R2 (`src/server/storage/index.ts` adapter) + `next/image`.
+3. Test Vercel Blob / R2 upload drivers with real credentials (written, not yet run against real storage); consider direct-to-storage client uploads for files > 4.5 MB on Vercel; `next/image`.
 4. Redis-based rate limiting (`src/server/http/rate-limit.ts`) for multi-instance.
 5. Seller notifications on new order (email/SMS) + courier integration (Pathao / Steadfast / RedX).
 6. Show platform announcement banner in dashboard; subscription expiry reminder emails.
@@ -141,6 +141,10 @@ Logins after seed: super admin `admin@example.com / ChangeMe123!` (from `.env`),
   (OrderPaymentMethod = COD|MANUAL|ONLINE + `Order.gateway`). See docs/features/payment.md.
 - 2026-10-20: **Mega store shop template** (owner's PDF reference) + all-products page, track-order page, wishlist, category pictures. See docs/features/shop-checkout.md.
 - 2026-10-20: **Custom domains now serve page + shop** (`/`, `/shop/**`) via proxy lookup. See docs/features/public-profile.md.
+- 2026-10-20: Build no longer needs a DB (DB reads on static pages inside Suspense).
+- 2026-10-20: **Vercel-ready**: upload storage drivers (Vercel Blob / S3-compatible e.g. Cloudflare R2 / local, auto-detected),
+  `vercel-build` runs migrations + idempotent seed (`scripts/deploy-db.mjs`), production-safe seed (no demo account, no weak admin),
+  `DIRECT_DATABASE_URL` for migrations, daily cron in `vercel.json`. Guide: docs/DEPLOYMENT.md.
 
 ## 8. Important decisions
 - **Next 16 Cache Components** (default in create-next-app): ISR = `'use cache'` + `cacheLife` + `cacheTag` (`src/server/queries/public.ts`);
@@ -165,7 +169,7 @@ Logins after seed: super admin `admin@example.com / ChangeMe123!` (from `.env`),
 ## 9. Known issues / limitations
 - Local dev DB: `pnpm db:dev` (Prisma Dev). Its port may change on restart → update `DATABASE_URL` in `.env` (`pnpm prisma dev ls`).
 - In-memory rate limiter + bKash token cache → single instance only until Redis is added.
-- Uploads stored on local disk (`UPLOAD_DIR`) — not suitable for serverless; switch storage adapter first.
+- Uploads: local disk driver doesn't work on Vercel — set `BLOB_READ_WRITE_TOKEN` or `S3_*`. Vercel caps request bodies at ~4.5 MB (`MAX_UPLOAD_MB=4`).
 - Custom domains need a host that accepts arbitrary Host headers + on-demand TLS.
 - Unknown usernames respond 200 with not-found UI (PPR streaming) — `noindex` applied.
 - Request body size for uploads should also be capped at the reverse proxy (e.g. `client_max_body_size 25m`).

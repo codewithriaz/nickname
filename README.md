@@ -20,7 +20,7 @@ cp .env.example .env         # fill JWT_ACCESS_SECRET, ENCRYPTION_KEY (openssl r
 pnpm db:dev                  # starts Prisma Postgres locally, prints the postgres:// URL → put it in .env
 
 pnpm db:migrate              # apply migrations
-pnpm db:seed                 # plans, templates, super admin, demo seller
+pnpm db:seed                 # plans, templates, super admin (+ demo seller when SEED_DEMO="true" in .env)
 pnpm dev                     # http://localhost:3000
 ```
 Logins after seeding: super admin = `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env` (default `admin@example.com / ChangeMe123!`),
@@ -35,13 +35,9 @@ demo seller = `demo@nickname.app / Demo12345` (public page: `/demo`, shop: `/dem
 | `pnpm db:seed` / `pnpm db:studio` | seed / browse data |
 
 ## Deployment
-1. PostgreSQL database → `DATABASE_URL`.
-2. Env vars from `.env.example` (secrets, `NEXT_PUBLIC_APP_URL`, `APP_HOSTS`, gateways, SMTP).
-3. `pnpm install && pnpm db:deploy && pnpm db:seed && pnpm build && pnpm start`.
-4. Daily cron: `curl -H "Authorization: Bearer $CRON_SECRET" https://YOUR_APP/api/cron/expire-subscriptions`.
-5. Persistent volume for `UPLOAD_DIR` (or switch the storage adapter to S3/R2).
-6. Custom domains: the server must accept any `Host` and issue TLS on demand (e.g. Caddy `on_demand_tls`).
-7. Payment callbacks: `https://YOUR_APP/api/payments/sslcommerz/{callback,ipn}` and `/api/payments/bkash/callback`.
+Vercel (recommended): see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — Neon/Supabase Postgres, Vercel Blob or Cloudflare R2 for uploads,
+env vars, automatic migrations + seed on every deploy (`vercel-build`), daily cron (`vercel.json`).
+VPS: `pnpm install && pnpm db:deploy:all && pnpm build && pnpm start`, a persistent `UPLOAD_DIR`, and Caddy on-demand TLS for custom domains.
 
 ## Project structure
 ```

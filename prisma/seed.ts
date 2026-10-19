@@ -21,33 +21,42 @@ async function main() {
   console.log(`✔ plans (${DEFAULT_PLANS.length})`);
 
   for (const t of TEMPLATE_PRESETS) {
-    await db.template.upsert({ where: { slug: t.slug }, create: t, update: { theme: t.theme, name: t.name, description: t.description } });
+    // create only — never overwrite templates a super admin has edited
+    await db.template.upsert({ where: { slug: t.slug }, create: t, update: {} });
   }
   console.log(`✔ templates (${TEMPLATE_PRESETS.length})`);
 
   await db.platformSetting.upsert({ where: { key: "platform" }, create: { key: "platform", value: DEFAULT_PLATFORM_SETTINGS }, update: {} });
   console.log("✔ platform settings");
 
+  const isProd = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
   const adminEmail = (process.env.SUPER_ADMIN_EMAIL || "admin@example.com").toLowerCase();
   const adminPassword = process.env.SUPER_ADMIN_PASSWORD || "ChangeMe123!";
-  await db.user.upsert({
-    where: { email: adminEmail },
-    create: {
-      email: adminEmail,
-      name: "Super Admin",
-      passwordHash: await bcrypt.hash(adminPassword, 12),
-      role: "SUPER_ADMIN",
-      emailVerified: true,
-      referralCode: code(),
-    },
-    update: { role: "SUPER_ADMIN" },
-  });
-  console.log(`✔ super admin: ${adminEmail}`);
+  const weakAdmin = adminPassword === "ChangeMe123!" || adminPassword.length < 10 || adminEmail === "admin@example.com";
+  if (isProd && weakAdmin && !(await db.user.findUnique({ where: { email: adminEmail } }))) {
+    console.warn("⚠️  Super admin NOT created: set SUPER_ADMIN_EMAIL and a strong SUPER_ADMIN_PASSWORD (10+ chars) in production.");
+  } else {
+    await db.user.upsert({
+      where: { email: adminEmail },
+      create: {
+        email: adminEmail,
+        name: "Super Admin",
+        passwordHash: await bcrypt.hash(adminPassword, 12),
+        role: "SUPER_ADMIN",
+        emailVerified: true,
+        referralCode: code(),
+      },
+      update: { role: "SUPER_ADMIN" },
+    });
+    console.log(`✔ super admin: ${adminEmail} (password is only set when the account is first created)`);
+  }
 
-  // ── Demo seller ────────────────────────────────────────────────────
+  // ── Demo seller (local/dev only — opt in with SEED_DEMO=true) ─────────
   const demoEmail = "demo@nickname.app";
   const existingDemo = await db.user.findUnique({ where: { email: demoEmail } });
-  if (!existingDemo) {
+  if (process.env.SEED_DEMO !== "true") {
+    console.log("• demo seller skipped (set SEED_DEMO=true to create it)");
+  } else if (!existingDemo) {
     const bazaar = await db.template.findUnique({ where: { slug: "bazaar" } });
     const demo = await db.user.create({
       data: {
