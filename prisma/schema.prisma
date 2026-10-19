@@ -1,0 +1,698 @@
+// Nickname — database schema (PostgreSQL, Prisma 7)
+// Money is always stored as Int minor units (paisa / cents).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  USER
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentGateway {
+  SSLCOMMERZ
+  BKASH
+  MANUAL
+  ADMIN
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+  REFUNDED
+}
+
+enum BlockType {
+  LINK
+  AFFILIATE
+  HEADER
+  TEXT
+  IMAGE
+  EMBED
+  EMAIL_SIGNUP
+  FORM
+  FILE
+  FOLDER
+  PRODUCT
+  SOCIALS
+  DIVIDER
+}
+
+enum BlockLayout {
+  CLASSIC
+  HIGHLIGHT
+  GRID
+  CAROUSEL
+}
+
+enum BlockAnimation {
+  NONE
+  PULSE
+  SHAKE
+  BOUNCE
+  WOBBLE
+  GLOW
+  JIGGLE
+  FLASH
+}
+
+enum EventType {
+  PAGE_VIEW
+  LINK_CLICK
+  SHORTLINK_CLICK
+  QR_SCAN
+  SHOP_VIEW
+  PRODUCT_VIEW
+  ADD_TO_CART
+  CHECKOUT_START
+  ORDER_PLACED
+  SUBSCRIBE
+}
+
+enum ProductType {
+  PHYSICAL
+  DIGITAL
+  AFFILIATE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum OrderPaymentMethod {
+  COD
+  MANUAL
+  /// Online gateway — which one is stored in Order.gateway (see src/config/payment-gateways.ts)
+  ONLINE
+}
+
+enum OrderPaymentStatus {
+  UNPAID
+  PENDING_VERIFICATION
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum EarningStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+}
+
+enum PayoutStatus {
+  REQUESTED
+  PAID
+  REJECTED
+}
+
+enum VerificationStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ───────────────────────────── Identity ─────────────────────────────
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  passwordHash  String
+  name          String
+  avatarUrl     String?
+  role          Role       @default(USER)
+  status        UserStatus @default(ACTIVE)
+  emailVerified Boolean    @default(false)
+  referralCode  String     @unique
+  referredById  String?
+  referredBy    User?      @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals     User[]     @relation("Referrals")
+  lastLoginAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  sessions          Session[]
+  passwordResets    PasswordReset[]
+  subscription      Subscription?
+  payments          Payment[]
+  profiles          Profile[]
+  shortLinks        ShortLink[]
+  apiKeys           ApiKey[]
+  earnings          ReferralEarning[] @relation("EarningReferrer")
+  generatedEarnings ReferralEarning[] @relation("EarningReferred")
+  payouts           Payout[]
+  auditLogs         AuditLog[]
+
+  @@index([referredById])
+  @@index([createdAt])
+}
+
+model Session {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash      String    @unique
+  userAgent      String?
+  ip             String?
+  impersonatorId String?
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  prefix     String
+  keyHash    String    @unique
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ───────────────────────────── Billing ─────────────────────────────
+
+model Plan {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name            String
+  description     String   @default("")
+  /// BDT minor units (paisa)
+  priceMonthly    Int      @default(0)
+  priceYearly     Int      @default(0)
+  /// USD minor units (cents) — display / reference
+  priceMonthlyUsd Int      @default(0)
+  priceYearlyUsd  Int      @default(0)
+  trialDays       Int      @default(0)
+  /// PlanLimits (see src/schemas/plan.ts)
+  limits          Json
+  /// PlanFeatures (see src/schemas/plan.ts)
+  features        Json
+  highlights      String[] @default([])
+  isActive        Boolean  @default(true)
+  isDefault       Boolean  @default(false)
+  isPopular       Boolean  @default(false)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions Subscription[]
+  payments      Payment[]
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId             String
+  plan               Plan               @relation(fields: [planId], references: [id])
+  status             SubscriptionStatus @default(ACTIVE)
+  interval           BillingInterval    @default(MONTHLY)
+  currentPeriodStart DateTime           @default(now())
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([planId])
+  @@index([currentPeriodEnd])
+}
+
+model Coupon {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  percentOff     Int
+  maxRedemptions Int?
+  redemptions    Int       @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+
+  payments Payment[]
+}
+
+model Payment {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId        String
+  plan          Plan            @relation(fields: [planId], references: [id])
+  interval      BillingInterval
+  amount        Int
+  currency      String          @default("BDT")
+  gateway       PaymentGateway
+  status        PaymentStatus   @default(PENDING)
+  transactionId String          @unique
+  gatewayRef    String?
+  couponId      String?
+  coupon        Coupon?         @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  meta          Json?
+  paidAt        DateTime?
+  createdAt     DateTime        @default(now())
+
+  referralEarning ReferralEarning?
+
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+// ───────────────────────────── Referral ─────────────────────────────
+
+model ReferralEarning {
+  id             String        @id @default(cuid())
+  referrerId     String
+  referrer       User          @relation("EarningReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredUserId String
+  referredUser   User          @relation("EarningReferred", fields: [referredUserId], references: [id], onDelete: Cascade)
+  paymentId      String        @unique
+  payment        Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount         Int
+  percent        Int
+  status         EarningStatus @default(PENDING)
+  payoutId       String?
+  payout         Payout?       @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@index([referrerId, status])
+}
+
+model Payout {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Int
+  method      String
+  account     String
+  status      PayoutStatus @default(REQUESTED)
+  note        String?
+  processedAt DateTime?
+  createdAt   DateTime     @default(now())
+
+  earnings ReferralEarning[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ───────────────────────────── Link-in-bio ─────────────────────────────
+
+model Template {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  description  String   @default("")
+  category     String   @default("general")
+  /// ProfileTheme (see src/schemas/theme.ts)
+  theme        Json
+  previewImage String?
+  isPremium    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profiles Profile[]
+}
+
+model Profile {
+  id                String             @id @default(cuid())
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username          String             @unique
+  displayName       String
+  bio               String             @default("")
+  avatarUrl         String?
+  templateId        String?
+  template          Template?          @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  /// Partial<ProfileTheme> overrides on top of template
+  theme             Json?
+  /// SocialLink[]
+  socials           Json               @default("[]")
+  /// ProfileSeo
+  seo               Json               @default("{}")
+  /// ProfileSettings
+  settings          Json               @default("{}")
+  isPublished       Boolean            @default(true)
+  verification      VerificationStatus @default(NONE)
+  customDomain      String?            @unique
+  domainVerifyToken String?
+  domainVerified    Boolean            @default(false)
+  redirectBlockId   String?
+  redirectStartsAt  DateTime?
+  redirectEndsAt    DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  tabs        Tab[]
+  blocks      Block[]
+  subscribers Subscriber[]
+  store       Store?
+  shortLinks  ShortLink[]
+  events      AnalyticsEvent[]
+
+  @@index([userId])
+}
+
+model Tab {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  title     String
+  slug      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  blocks Block[]
+
+  @@unique([profileId, slug])
+}
+
+model Block {
+  id        String         @id @default(cuid())
+  profileId String
+  profile   Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tabId     String?
+  tab       Tab?           @relation(fields: [tabId], references: [id], onDelete: SetNull)
+  parentId  String?
+  parent    Block?         @relation("FolderChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Block[]        @relation("FolderChildren")
+  type      BlockType
+  title     String         @default("")
+  url       String?
+  /// Type-specific payload (see src/schemas/block.ts)
+  data      Json           @default("{}")
+  /// { kind: 'image'|'emoji'|'icon', value: string }
+  thumbnail Json?
+  layout    BlockLayout    @default(CLASSIC)
+  animation BlockAnimation @default(NONE)
+  isActive  Boolean        @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  order     Int            @default(0)
+  clicks    Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  subscribers Subscriber[]
+  events      AnalyticsEvent[]
+
+  @@index([profileId, order])
+  @@index([parentId])
+}
+
+model Subscriber {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  blockId   String?
+  block     Block?   @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  email     String?
+  name      String?
+  phone     String?
+  data      Json?
+  createdAt DateTime @default(now())
+
+  @@index([profileId, createdAt])
+}
+
+// ───────────────────────────── URL shortener ─────────────────────────────
+
+model ShortLink {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId    String?
+  profile      Profile?  @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  code         String    @unique
+  destination  String
+  title        String    @default("")
+  passwordHash String?
+  expiresAt    DateTime?
+  isActive     Boolean   @default(true)
+  /// QR style { fg, bg, logoUrl }
+  qrStyle      Json?
+  clicks       Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  events AnalyticsEvent[]
+
+  @@index([userId, createdAt])
+}
+
+// ───────────────────────────── Analytics ─────────────────────────────
+
+model AnalyticsEvent {
+  id          String     @id @default(cuid())
+  type        EventType
+  profileId   String?
+  profile     Profile?   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  blockId     String?
+  block       Block?     @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  shortLinkId String?
+  shortLink   ShortLink? @relation(fields: [shortLinkId], references: [id], onDelete: Cascade)
+  productId   String?
+  visitorId   String
+  referrer    String?
+  country     String?
+  city        String?
+  device      String?
+  browser     String?
+  os          String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  createdAt   DateTime   @default(now())
+
+  @@index([profileId, createdAt])
+  @@index([profileId, type, createdAt])
+  @@index([shortLinkId, createdAt])
+  @@index([blockId])
+}
+
+// ───────────────────────────── Shop ─────────────────────────────
+
+model Store {
+  id              String   @id @default(cuid())
+  profileId       String   @unique
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name            String
+  description     String   @default("")
+  logoUrl         String?
+  bannerUrl       String?
+  currency        String   @default("BDT")
+  /// ISO country code — decides which payment gateways the seller can enable
+  country         String   @default("BD")
+  phone           String?
+  whatsapp        String?
+  messengerUrl    String?
+  address         String?
+  /// minor units
+  deliveryInside  Int      @default(6000)
+  deliveryOutside Int      @default(12000)
+  insideLabel     String   @default("Inside Dhaka")
+  outsideLabel    String   @default("Outside Dhaka")
+  freeShippingMin Int?
+  codEnabled      Boolean  @default(true)
+  manualEnabled   Boolean  @default(false)
+  /// { bkash?, nagad?, rocket?, upi?, bank?, instructions? }
+  manualAccounts  Json     @default("{}")
+  /// Enabled online gateway keys, e.g. ["bkash","nagad","stripe"]
+  enabledGateways String[] @default([])
+  /// Encrypted { [gatewayKey]: { field: value } } (AES-256-GCM) — never sent to client
+  gatewaySecrets  String?
+  gatewaySandbox  Boolean  @default(true)
+  orderPrefix     String   @default("ORD")
+  orderSeq        Int      @default(1000)
+  isActive        Boolean  @default(true)
+  /// Storefront design: "minimal" | "megastore"
+  layout          String   @default("minimal")
+  brandColor      String   @default("#2f62d6")
+  announcement    String?
+  /// [{ imageUrl, linkUrl?, title? }]
+  heroSlides      Json     @default("[]")
+  /// [{ imageUrl, linkUrl? }]
+  promoBanners    Json     @default("[]")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  categories Category[]
+  products   Product[]
+  orders     Order[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String
+  slug      String
+  imageUrl  String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  products Product[]
+
+  @@unique([storeId, slug])
+}
+
+model Product {
+  id           String      @id @default(cuid())
+  storeId      String
+  store        Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  type         ProductType @default(PHYSICAL)
+  name         String
+  slug         String
+  description  String      @default("")
+  price        Int
+  comparePrice Int?
+  images       String[]    @default([])
+  /// null = unlimited
+  stock        Int?
+  sku          String?
+  /// ProductOption[] e.g. [{ name: "Size", values: ["M","L"] }]
+  options      Json        @default("[]")
+  affiliateUrl String?
+  digitalUrl   String?
+  isActive     Boolean     @default(true)
+  isFeatured   Boolean     @default(false)
+  order        Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  orderItems OrderItem[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, isActive, order])
+}
+
+model Order {
+  id            String             @id @default(cuid())
+  storeId       String
+  store         Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderNumber   String
+  trackingToken String             @unique
+  customerName  String
+  customerPhone String
+  customerEmail String?
+  address       String
+  city          String             @default("")
+  deliveryZone  String             @default("inside")
+  note          String?
+  subtotal      Int
+  shippingFee   Int
+  discount      Int                @default(0)
+  total         Int
+  currency      String             @default("BDT")
+  paymentMethod OrderPaymentMethod
+  /// Online gateway key when paymentMethod = ONLINE
+  gateway       String?
+  paymentStatus OrderPaymentStatus @default(UNPAID)
+  /// { provider, senderNumber, trxId }
+  manualPayment Json?
+  transactionId String?            @unique
+  gatewayRef    String?
+  status        OrderStatus        @default(PENDING)
+  /// [{ status, at, note }]
+  history       Json               @default("[]")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  items OrderItem[]
+
+  @@unique([storeId, orderNumber])
+  @@index([storeId, createdAt])
+  @@index([storeId, status])
+  @@index([customerPhone])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name      String
+  image     String?
+  price     Int
+  quantity  Int
+  /// { Size: "M" }
+  options   Json     @default("{}")
+
+  @@index([orderId])
+}
+
+// ───────────────────────────── Platform ─────────────────────────────
+
+model PlatformSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300" width="600" height="300">
+  <defs>
+    <radialGradient id="melonFlesh" cx="50%" cy="45%" r="60%">
+      <stop offset="0" stop-color="#f6a65a"/>
+      <stop offset="1" stop-color="#e57e33"/>
+    </radialGradient>
+    <radialGradient id="avocado" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#55703a"/>
+      <stop offset="1" stop-color="#2c401d"/>
+    </radialGradient>
+    <radialGradient id="pear" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#ece27a"/>
+      <stop offset="1" stop-color="#c3b84a"/>
+    </radialGradient>
+    <radialGradient id="orange" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#ffab4a"/>
+      <stop offset="1" stop-color="#e67418"/>
+    </radialGradient>
+    <radialGradient id="lime" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#a8cf63"/>
+      <stop offset="1" stop-color="#6d9a35"/>
+    </radialGradient>
+    <radialGradient id="kiwi" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#a3825a"/>
+      <stop offset="1" stop-color="#6e5232"/>
+    </radialGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfc6b0"/>
+      <stop offset="1" stop-color="#b8ad94"/>
+    </linearGradient>
+  </defs>
+
+  <!-- tabletop -->
+  <rect x="0" y="236" width="600" height="64" fill="url(#table)"/>
+  <rect x="0" y="236" width="600" height="3" fill="#e2dac6" opacity=".7"/>
+
+  <!-- shadows -->
+  <g fill="#3b3a2c" opacity=".28">
+    <ellipse cx="95" cy="246" rx="92" ry="10"/>
+    <ellipse cx="228" cy="246" rx="60" ry="8"/>
+    <ellipse cx="318" cy="246" rx="36" ry="6"/>
+    <ellipse cx="405" cy="246" rx="58" ry="8"/>
+    <ellipse cx="520" cy="246" rx="62" ry="9"/>
+  </g>
+
+  <!-- cantaloupe half -->
+  <path d="M8 236 A88 92 0 0 1 184 236 Z" fill="#8e9d5e"/>
+  <path d="M18 236 A78 82 0 0 1 174 236 Z" fill="#cfd38a"/>
+  <path d="M26 236 A70 74 0 0 1 166 236 Z" fill="url(#melonFlesh)"/>
+  <path d="M60 236 A36 40 0 0 1 132 236 Z" fill="#d06a2a"/>
+  <g fill="#f3dfb0">
+    <ellipse cx="76" cy="226" rx="5" ry="2.6" transform="rotate(-30 76 226)"/>
+    <ellipse cx="90" cy="216" rx="5" ry="2.6" transform="rotate(-10 90 216)"/>
+    <ellipse cx="106" cy="215" rx="5" ry="2.6" transform="rotate(12 106 215)"/>
+    <ellipse cx="119" cy="224" rx="5" ry="2.6" transform="rotate(35 119 224)"/>
+    <ellipse cx="97" cy="229" rx="5" ry="2.6"/>
+  </g>
+
+  <!-- avocado -->
+  <path d="M228 150 C258 150 274 190 276 214 C278 240 256 250 228 250 C200 250 178 240 180 214 C182 190 198 150 228 150 Z" fill="url(#avocado)"/>
+  <ellipse cx="212" cy="182" rx="10" ry="18" fill="#ffffff" opacity=".12" transform="rotate(-20 212 182)"/>
+  <rect x="226" y="140" width="4" height="12" rx="2" fill="#4a3a22"/>
+
+  <!-- kiwi -->
+  <ellipse cx="318" cy="222" rx="34" ry="26" fill="url(#kiwi)"/>
+  <ellipse cx="306" cy="212" rx="10" ry="6" fill="#ffffff" opacity=".12"/>
+
+  <!-- pear / quince -->
+  <path d="M405 140 C424 140 428 166 432 180 C450 196 462 214 458 230 C454 248 432 252 405 252 C378 252 356 248 352 230 C348 214 360 196 378 180 C382 166 386 140 405 140 Z" fill="url(#pear)"/>
+  <ellipse cx="386" cy="190" rx="9" ry="20" fill="#ffffff" opacity=".18" transform="rotate(-15 386 190)"/>
+  <path d="M405 140 C404 130 408 122 414 118" stroke="#5a4628" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M414 122 C428 112 442 116 446 120 C436 128 424 128 414 122 Z" fill="#6f8f3a"/>
+
+  <!-- orange -->
+  <circle cx="520" cy="202" r="48" fill="url(#orange)"/>
+  <circle cx="502" cy="184" r="12" fill="#ffffff" opacity=".18"/>
+  <circle cx="522" cy="156" r="3" fill="#7a5a2a"/>
+
+  <!-- lime (front) -->
+  <ellipse cx="470" cy="236" rx="30" ry="22" fill="url(#lime)"/>
+  <ellipse cx="460" cy="228" rx="8" ry="5" fill="#ffffff" opacity=".2"/>
+</svg>

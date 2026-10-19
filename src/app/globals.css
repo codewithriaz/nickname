@@ -1,26 +1,94 @@
 @import "tailwindcss";
 
+/* ── Design tokens (app UI) ─────────────────────────────────────────── */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f0a1f;
+  --muted: #f6f5fb;
+  --muted-foreground: #6b6880;
+  --card: #ffffff;
+  --border: #e9e7f2;
+  --input: #dedbea;
+  --primary: #6d28d9;
+  --primary-hover: #5b21b6;
+  --primary-foreground: #ffffff;
+  --primary-soft: #f1eafe;
+  --accent: #ec4899;
+  --success: #16a34a;
+  --success-soft: #dcfce7;
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+  --destructive: #dc2626;
+  --destructive-soft: #fee2e2;
+  --ring: #a78bfa;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-outfit), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-bangla: var(--font-hindsiliguri), var(--font-inter), sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: #ddd6fe;
+}
+
+/* ── Block animations (public profile) ───────────────────────────────── */
+@keyframes nk-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes nk-shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+@keyframes nk-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes nk-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-1.5deg); } 75% { transform: rotate(1.5deg); } }
+@keyframes nk-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); } 50% { box-shadow: 0 0 22px 4px color-mix(in srgb, var(--btn-color, #a78bfa) 60%, transparent); } }
+@keyframes nk-jiggle { 0%, 90%, 100% { transform: rotate(0); } 92% { transform: rotate(-3deg); } 94% { transform: rotate(3deg); } 96% { transform: rotate(-2deg); } 98% { transform: rotate(2deg); } }
+@keyframes nk-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+.nk-anim-PULSE { animation: nk-pulse 2s ease-in-out infinite; }
+.nk-anim-SHAKE { animation: nk-shake 2.5s ease-in-out infinite; animation-delay: 1s; }
+.nk-anim-BOUNCE { animation: nk-bounce 1.6s ease-in-out infinite; }
+.nk-anim-WOBBLE { animation: nk-wobble 2s ease-in-out infinite; }
+.nk-anim-GLOW { animation: nk-glow 2.2s ease-in-out infinite; }
+.nk-anim-JIGGLE { animation: nk-jiggle 3s ease-in-out infinite; }
+.nk-anim-FLASH { animation: nk-flash 1.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="nk-anim-"] { animation: none !important; }
+}
+
+/* Hide scrollbars on horizontal carousels */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* Marketing background */
+.bg-grid {
+  background-image: linear-gradient(to right, #ede9fe66 1px, transparent 1px), linear-gradient(to bottom, #ede9fe66 1px, transparent 1px);
+  background-size: 44px 44px;
 }
