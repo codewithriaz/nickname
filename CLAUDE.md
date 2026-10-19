@@ -146,6 +146,9 @@ Logins after seed: super admin `admin@example.com / ChangeMe123!` (from `.env`),
 - **Next 16 Cache Components** (default in create-next-app): ISR = `'use cache'` + `cacheLife` + `cacheTag` (`src/server/queries/public.ts`);
   invalidation via `invalidate()` → `revalidateTag(tag,'max')` (`src/server/cache/tags.ts`). No `export const revalidate/dynamic`.
   Request-time pages put awaits inside `<Suspense>`. Dashboard/admin layouts must always render `{children}` (instant-navigation validator).
+  **Any DB read on a static page must sit inside `<Suspense>`** (e.g. `PricingTeaser` on `/`): if the DB is unreachable at build
+  time (Vercel), the cached query falls back to `cacheLife("seconds")` and becomes dynamic — outside Suspense that fails the build.
+  Verified: `DATABASE_URL=<unreachable> pnpm build` passes.
 - Route handlers wrap with `handler/authed/adminOnly/apiKeyAuthed` (`src/server/http/handler.ts`); they call `unstable_rethrow` so Next
   prerender bail-outs aren't swallowed. Response envelope `{success,data,meta?}` / `{success:false,error}`.
 - `src/proxy.ts` = Next 16 "middleware" (auth gate, referral cookie, custom-domain rewrite).

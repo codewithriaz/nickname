@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Check, Minus } from "lucide-react";
 import { getPublicPlans } from "@/server/queries/public";
 import { PricingSection } from "@/features/marketing/components/pricing-section";
@@ -20,20 +21,14 @@ const LIMIT_ROWS: { key: keyof PlanLimits; label: string }[] = [
   { key: "analyticsDays", label: "Analytics history (days)" },
 ];
 
-export default async function PricingPage() {
+/** Plans + comparison table (cached DB query, inside Suspense so the page builds without a DB). */
+async function PlansAndComparison() {
   const plans = await getPublicPlans();
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16">
-      <div className="mx-auto max-w-2xl text-center">
-        <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">Simple, honest pricing</h1>
-        <p className="mt-4 text-lg text-muted-foreground">
-          Start free. Upgrade when you grow. Always cheaper than {COMPETITORS.map((c) => c.name.split(" ")[0]).filter((v, i, a) => a.indexOf(v) === i).join(" & ")}.
-        </p>
-      </div>
+    <>
       <div className="mt-12">
         <PricingSection plans={plans} />
       </div>
-
       {plans.length > 0 && (
         <div className="mt-20 overflow-x-auto rounded-3xl border border-border bg-white">
           <table className="w-full min-w-[640px] text-sm">
@@ -72,6 +67,23 @@ export default async function PricingPage() {
           </table>
         </div>
       )}
+
+    </>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-16">
+      <div className="mx-auto max-w-2xl text-center">
+        <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">Simple, honest pricing</h1>
+        <p className="mt-4 text-lg text-muted-foreground">
+          Start free. Upgrade when you grow. Always cheaper than {COMPETITORS.map((c) => c.name.split(" ")[0]).filter((v, i, a) => a.indexOf(v) === i).join(" & ")}.
+        </p>
+      </div>
+      <Suspense fallback={<div className="mt-12 h-[520px] animate-pulse rounded-3xl bg-muted" />}>
+        <PlansAndComparison />
+      </Suspense>
 
       <div className="mx-auto mt-20 max-w-3xl">
         <h2 className="text-center font-display text-2xl font-semibold">FAQ</h2>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Star } from "lucide-react";
 import { getPublicPlans } from "@/server/queries/public";
@@ -19,11 +20,49 @@ function Phone({ template }: { template: string }) {
   );
 }
 
-/** Static home page (plans are a cached query → part of the static shell). */
-export default async function HomePage() {
+/** Pricing teaser — plans come from a cached DB query; Suspense keeps the page buildable even when the DB isn't reachable at build time. */
+async function PricingTeaser() {
   const plans = await getPublicPlans();
   const cheapestPaid = plans.filter((p) => p.priceMonthly > 0).sort((a, b) => a.priceMonthly - b.priceMonthly)[0];
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-20">
+      <div className="grid items-center gap-10 rounded-[2rem] bg-gradient-to-br from-violet-700 via-fuchsia-600 to-pink-500 p-8 text-white sm:p-12 lg:grid-cols-2">
+        <div>
+          <h2 className="font-display text-3xl font-semibold sm:text-4xl">Pay less. Get more.</h2>
+          <p className="mt-3 text-white/85">
+            Paid plans from <b>{cheapestPaid ? formatMoney(cheapestPaid.priceMonthly) : "৳299"}/month</b> — with a shop, short links and QR codes included.
+          </p>
+          <Link href="/pricing" className={buttonVariants({ size: "lg", className: "mt-6 bg-white text-violet-700 hover:bg-white/90" })}>
+            See pricing <ArrowRight className="size-4" />
+          </Link>
+        </div>
+        <ul className="space-y-3">
+          {COMPETITORS.map((c) => (
+            <li key={c.name} className="flex items-center justify-between rounded-2xl bg-white/10 px-5 py-3 backdrop-blur">
+              <span>{c.name}</span>
+              <s className="opacity-80">{c.price}</s>
+            </li>
+          ))}
+          <li className="flex items-center justify-between rounded-2xl bg-white px-5 py-3 font-semibold text-violet-700">
+            <span>{siteConfig.name} Starter</span>
+            <span>{cheapestPaid ? `$${(cheapestPaid.priceMonthlyUsd / 100).toFixed(2)}` : "$2.50"} / mo</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+  );
+}
 
+function PricingTeaserSkeleton() {
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-20">
+      <div className="h-80 animate-pulse rounded-[2rem] bg-gradient-to-br from-violet-200 to-pink-200" />
+    </section>
+  );
+}
+
+/** Static home page (plans are a cached query → part of the static shell). */
+export default function HomePage() {
   return (
     <>
       <section className="relative overflow-hidden">
@@ -74,31 +113,9 @@ export default async function HomePage() {
         </section>
       ))}
 
-      <section className="mx-auto max-w-6xl px-4 py-20">
-        <div className="grid items-center gap-10 rounded-[2rem] bg-gradient-to-br from-violet-700 via-fuchsia-600 to-pink-500 p-8 text-white sm:p-12 lg:grid-cols-2">
-          <div>
-            <h2 className="font-display text-3xl font-semibold sm:text-4xl">Pay less. Get more.</h2>
-            <p className="mt-3 text-white/85">
-              Paid plans from <b>{cheapestPaid ? formatMoney(cheapestPaid.priceMonthly) : "৳299"}/month</b> — with a shop, short links and QR codes included.
-            </p>
-            <Link href="/pricing" className={buttonVariants({ size: "lg", className: "mt-6 bg-white text-violet-700 hover:bg-white/90" })}>
-              See pricing <ArrowRight className="size-4" />
-            </Link>
-          </div>
-          <ul className="space-y-3">
-            {COMPETITORS.map((c) => (
-              <li key={c.name} className="flex items-center justify-between rounded-2xl bg-white/10 px-5 py-3 backdrop-blur">
-                <span>{c.name}</span>
-                <s className="opacity-80">{c.price}</s>
-              </li>
-            ))}
-            <li className="flex items-center justify-between rounded-2xl bg-white px-5 py-3 font-semibold text-violet-700">
-              <span>{siteConfig.name} Starter</span>
-              <span>{cheapestPaid ? `$${(cheapestPaid.priceMonthlyUsd / 100).toFixed(2)}` : "$2.50"} / mo</span>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <Suspense fallback={<PricingTeaserSkeleton />}>
+        <PricingTeaser />
+      </Suspense>
 
       <section className="mx-auto max-w-3xl px-4 pb-20">
         <h2 className="text-center font-display text-3xl font-semibold">Questions</h2>
